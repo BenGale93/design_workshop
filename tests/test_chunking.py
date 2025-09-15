@@ -107,6 +107,11 @@ def test_latex_starts_blank():
     )
 
 
+def test_bad_doc_type():
+    with pytest.raises(ValueError, match="fake not supported"):
+        chunk_document("", "fake")
+
+
 @pytest.fixture
 def get_downloader() -> t.Callable[[str], RawGitHubDownloader]:
     def _create_client(content: str) -> RawGitHubDownloader:
