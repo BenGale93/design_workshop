@@ -1,4 +1,7 @@
-"""Initial example."""
+"""Let's do some dependency injection.
+
+Say we wanted to do a bunch of documents. Creating an httpx client internally each time isn't great.
+"""
 
 import re
 import typing as t
@@ -6,13 +9,24 @@ import typing as t
 import httpx
 
 
-def download_document_from_github(url: str) -> str:
-    """Download the raw contents of a document from a GitHub repo."""
-    base_url = "https://raw.githubusercontent.com/"
-    response = httpx.get(url=base_url + url)
-    response.raise_for_status()
+class RawGitHubDownloader:
+    """Downloads raw documents hosted on GitHub."""
 
-    return response.text
+    def __init__(
+        self,
+        client: httpx.Client | None = None,
+        base_url: str = "https://raw.githubusercontent.com/",
+    ) -> None:
+        """Initialise the downloader with a client and base_url."""
+        self.client = client or httpx.Client()
+        self.base_url = base_url
+
+    def get_document(self, url: str) -> str:
+        """Get the text of the document at the given GitHub repo."""
+        response = self.client.get(url=self.base_url + url)
+        response.raise_for_status()
+
+        return response.text
 
 
 def chunk_document(
