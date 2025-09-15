@@ -1,9 +1,10 @@
 import typing as t
-from unittest.mock import MagicMock
+from http import HTTPStatus
 
+import httpx
 import pytest
 
-from chunking import chunk_document, download_document_from_github
+from chunking import RawGitHubDownloader, chunk_document
 
 
 def test_no_h1_or_h2():
@@ -91,16 +92,22 @@ def test_latex_starts_blank():
     ]
 
 
-def test_download_document(monkeypatch: pytest.MonkeyPatch):
+@pytest.fixture
+def get_downloader() -> t.Callable[[str], RawGitHubDownloader]:
+    def _create_client(content: str) -> RawGitHubDownloader:
+        test_client = httpx.Client(
+            transport=httpx.MockTransport(lambda _: httpx.Response(HTTPStatus.OK, content=content))
+        )
+        return RawGitHubDownloader(client=test_client)
+
+    return _create_client
+
+
+def test_download_document(get_downloader):
     doc_text = "# Hello\n\nWorld\n"
 
-    def fake_get(url: str) -> t.Any:  # noqa: ARG001
-        mock_response = MagicMock()
-        mock_response.raise_for_status.return_value = None
-        mock_response.text = doc_text
-        return mock_response
+    downloader = get_downloader(doc_text)
 
-    monkeypatch.setattr("httpx.get", fake_get)
-    raw_doc = download_document_from_github("test")
+    raw_doc = downloader.get_document("test")
 
     assert raw_doc == doc_text
