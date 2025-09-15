@@ -2,7 +2,7 @@ from chunking import RawGitHubDownloader, chunk_document
 
 downloader = RawGitHubDownloader()
 
-raw_doc = downloader.get_document("BenGale93/cli-diary/refs/heads/master/README.md")
-doc = chunk_document(raw_doc, "markdown")
+raw_doc = downloader.get_document("sphinx-doc/sphinx/refs/heads/master/doc/faq.rst")
+doc = chunk_document(raw_doc, "rst")
 
-print(doc.get_section("cli-diary"))
+print(doc.get_section("How do I..."))
