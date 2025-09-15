@@ -4,7 +4,7 @@ from http import HTTPStatus
 import httpx
 import pytest
 
-from chunking import RawGitHubDownloader, chunk_document
+from chunking import ChunkedDocument, RawGitHubDownloader, Section, chunk_document
 
 
 def test_no_h1_or_h2():
@@ -12,7 +12,7 @@ def test_no_h1_or_h2():
 
     doc = chunk_document(document, doc_type="markdown")
 
-    assert doc == [{"title": None, "content": "Hello World"}]
+    assert doc == ChunkedDocument(sections=[Section(title=None, content="Hello World")])
 
 
 def test_just_h1():
@@ -20,7 +20,7 @@ def test_just_h1():
 
     doc = chunk_document(document, doc_type="markdown")
 
-    assert doc == [{"title": "Hello", "content": "World"}]
+    assert doc == ChunkedDocument(sections=[Section(title="Hello", content="World")])
 
 
 def test_starts_before_h1():
@@ -28,10 +28,12 @@ def test_starts_before_h1():
 
     doc = chunk_document(document, doc_type="markdown")
 
-    assert doc == [
-        {"title": None, "content": "Morning"},
-        {"title": "Hello", "content": "World"},
-    ]
+    assert doc == ChunkedDocument(
+        sections=[
+            Section(title=None, content="Morning"),
+            Section(title="Hello", content="World"),
+        ]
+    )
 
 
 def test_multi_h1():
@@ -39,10 +41,12 @@ def test_multi_h1():
 
     doc = chunk_document(document, doc_type="markdown")
 
-    assert doc == [
-        {"title": "Hello", "content": "World"},
-        {"title": "Content", "content": "Here"},
-    ]
+    assert doc == ChunkedDocument(
+        sections=[
+            Section(title="Hello", content="World"),
+            Section(title="Content", content="Here"),
+        ]
+    )
 
 
 def test_markdown_header_in_code_is_ignored_h1():
@@ -50,19 +54,23 @@ def test_markdown_header_in_code_is_ignored_h1():
 
     doc = chunk_document(document, doc_type="markdown")
 
-    assert doc == [
-        {"title": "Content", "content": "```\n# Code comment\n```\n\nHere\n\n## More\n\nStuff"}
-    ]
+    assert doc == ChunkedDocument(
+        sections=[
+            Section(title="Content", content="```\n# Code comment\n```\n\nHere\n\n## More\n\nStuff")
+        ]
+    )
 
 
 def test_duplicate_h1_header():
     document = "# Hello\n\nWorld\n\n# Hello\n\nHere"
     doc = chunk_document(document, doc_type="markdown")
 
-    assert doc == [
-        {"title": "Hello", "content": "World"},
-        {"title": "Hello", "content": "Here"},
-    ]
+    assert doc == ChunkedDocument(
+        sections=[
+            Section(title="Hello", content="World"),
+            Section(title="Hello", content="Here"),
+        ]
+    )
 
 
 def test_latex_single_section():
@@ -70,12 +78,14 @@ def test_latex_single_section():
 
     doc = chunk_document(document, doc_type="latex")
 
-    assert doc == [
-        {
-            "title": "Hello",
-            "content": "World\n\n\\subsection{Content}\n\nHere",
-        }
-    ]
+    assert doc == ChunkedDocument(
+        sections=[
+            Section(
+                title="Hello",
+                content="World\n\n\\subsection{Content}\n\nHere",
+            ),
+        ]
+    )
 
 
 def test_latex_starts_blank():
@@ -83,13 +93,18 @@ def test_latex_starts_blank():
 
     doc = chunk_document(document, doc_type="latex")
 
-    assert doc == [
-        {"title": None, "content": "Hello"},
-        {
-            "title": "Hello",
-            "content": "World\n\n\\subsection{Content}\n\nHere",
-        },
-    ]
+    assert doc == ChunkedDocument(
+        sections=[
+            Section(
+                title=None,
+                content="Hello",
+            ),
+            Section(
+                title="Hello",
+                content="World\n\n\\subsection{Content}\n\nHere",
+            ),
+        ]
+    )
 
 
 @pytest.fixture
@@ -111,3 +126,22 @@ def test_download_document(get_downloader):
     raw_doc = downloader.get_document("test")
 
     assert raw_doc == doc_text
+
+
+class TestChunkedDocument:
+    def test_get_h1_unique(self):
+        doc = ChunkedDocument([Section(None, "1"), Section("Test", "2")])
+
+        assert doc.get_section("Test").content == "2"
+
+    def test_get_h1_not_found(self):
+        doc = ChunkedDocument([Section(None, "1"), Section("Test", "2")])
+
+        with pytest.raises(ValueError, match="resulted in '0'"):
+            doc.get_section("Fake")
+
+    def test_get_h1_too_many(self):
+        doc = ChunkedDocument([Section("Test", "1"), Section("Test", "2")])
+
+        with pytest.raises(ValueError, match="resulted in '2'"):
+            doc.get_section("Test")

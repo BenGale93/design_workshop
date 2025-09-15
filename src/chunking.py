@@ -1,10 +1,8 @@
-"""Let's do some dependency injection.
-
-Say we wanted to do a bunch of documents. Creating an httpx client internally each time isn't great.
-"""
+"""Now let's make our return object more useful."""
 
 import re
 import typing as t
+from dataclasses import dataclass, field
 
 import httpx
 
@@ -29,9 +27,50 @@ class RawGitHubDownloader:
         return response.text
 
 
-def chunk_document(
-    document: str, doc_type: t.Literal["markdown", "latex"]
-) -> list[dict[str, t.Any]]:
+@dataclass
+class Section:
+    """A section of a document."""
+
+    title: str | None
+    content: str
+
+
+@dataclass
+class ChunkedDocument:
+    """A chunked document."""
+
+    sections: list[Section] = field(default_factory=list)
+
+    def add_section(self, title: str | None, content: list[str]) -> None:
+        """Add a section to the chunked document.
+
+        Args:
+            title: Title of the section.
+            content: Content of the section.
+        """
+        self.sections.append(Section(title, "\n".join(content).strip()))
+
+    def get_sections_with_title(self, title: str | None) -> list[Section]:
+        """Return all sections with the given title."""
+        return [section for section in self.sections if section.title == title]
+
+    def get_section(self, title: str | None) -> Section:
+        """Return a unique section.
+
+        Args:
+            title: Title of the section.
+
+        Raises:
+            ValueError: If 0 or more than 1 section has the given title
+        """
+        sections = self.get_sections_with_title(title)
+        if (num_sections := len(sections)) != 1:
+            msg = f"The title '{title}' resulted in '{num_sections}' being found."
+            raise ValueError(msg)
+        return sections[0]
+
+
+def chunk_document(document: str, doc_type: t.Literal["markdown", "latex"]) -> ChunkedDocument:
     """Chunks a document into sections and subsections, removing any comments.
 
     Args:
@@ -48,9 +87,9 @@ def chunk_document(
         h1_pattern = r"^\\section\{(.+)\}"
         code_block_pattern = None
 
-    sections = []
-    current_heading = None
-    current_content = []
+    chunked_document = ChunkedDocument()
+    current_heading: str | None = None
+    current_content: list[str] = []
     in_code_block = False
 
     for raw_line in document.splitlines():
@@ -66,15 +105,13 @@ def chunk_document(
 
         if h1_match:
             if current_content:
-                sections.append(
-                    {"title": current_heading, "content": "\n".join(current_content).strip()}
-                )
+                chunked_document.add_section(current_heading, current_content)
 
             current_heading = h1_match.group(1)
             current_content = []
         else:
             current_content.append(line)
 
-    sections.append({"title": current_heading, "content": "\n".join(current_content).strip()})
+    chunked_document.add_section(current_heading, current_content)
 
-    return sections
+    return chunked_document
