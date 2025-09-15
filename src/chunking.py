@@ -1,4 +1,4 @@
-"""Now let's use the strategy pattern for the file type specific logic."""
+"""Let us put it to the test with ReST chunking."""
 
 import re
 import typing as t
@@ -134,9 +134,50 @@ class LatexChunker:
         return chunked_document
 
 
+class ReSTChunker:
+    underline_pattern = r"^[=\-~^`#*+]+$"
+
+    def __init__(self) -> None:
+        self.level_types: list[str] = []
+
+    def chunk_document(self, document: str) -> ChunkedDocument:
+        chunked_document = ChunkedDocument()
+        current_heading: str | None = None
+        current_content: list[str] = []
+
+        lines = document.splitlines()
+
+        for i, raw_line in enumerate(lines[:-1]):
+            line = raw_line.strip()
+            next_line = lines[i + 1]
+
+            if re.match(self.underline_pattern, next_line) and len(next_line) >= len(line):
+                level_type = next_line[0]
+                if level_type not in self.level_types:
+                    # Not seen this level before
+                    self.level_types.append(level_type)
+                level = self.level_types.index(level_type)
+                if level in {0, 1}:
+                    if current_content:
+                        chunked_document.add_section(current_heading, current_content)
+                    current_heading = line
+                    current_content = []
+                else:
+                    current_content.append(line)
+            else:
+                current_content.append(line)
+
+        current_content.append(lines[-1])
+
+        chunked_document.add_section(current_heading, current_content)
+
+        return chunked_document
+
+
 CHUNKERS: dict[str, Chunker] = {
     "markdown": MarkdownChunker(),
     "latex": LatexChunker(),
+    "rst": ReSTChunker(),
 }
 
 
