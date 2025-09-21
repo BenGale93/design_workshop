@@ -225,3 +225,10 @@ You can also use functools.partial to make sure the function has the correct
 signature.
 
 -->
+
+# Further Reading
+
+* https://refactoring.guru/
+* https://python-patterns.guide/
+* https://www.youtube.com/@ArjanCodes
+* https://python-3-patterns-idioms-test.readthedocs.io/en/latest/index.html
