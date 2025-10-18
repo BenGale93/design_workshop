@@ -1,4 +1,4 @@
-# Python Design Workshop
+# Python Software Design Workshop
 
 20th October 2025
 
@@ -100,6 +100,10 @@ It does require a location in your code which is a bit messier and puts
 everything together. I like to use class methods as alternative constructors
 that use reasonable defaults.
 
+If you don't use dependency injection, you often have to mock out
+implementation details in the tests you write. This makes your tests very
+brittle.
+
 -->
 
 
@@ -154,7 +158,7 @@ If you have a UserID you would often use an integer as the underlying
 primitive. Does it make sense to add two UserIDs together? No.
 
 Similarly, if you have OrderID, does it make sense to provide that integer to a
-register user function? No.
+get user function? No.
 
 -->
 
